@@ -46,7 +46,7 @@ class Microphone(AudioSource):
             device_info = (
                 devices[device_index] if device_index is not None else sd.default.device
             )
-            default_sample_rate = device_info["default_samplerate"]
+            default_sample_rate = sd.default.samplerate
             assert (
                 isinstance(default_sample_rate, (float, int))
                 and default_sample_rate > 0
