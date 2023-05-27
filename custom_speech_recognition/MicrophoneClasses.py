@@ -46,7 +46,7 @@ class Microphone(AudioSource):
             device_info = (
                 devices[device_index] if device_index is not None else sd.default.device
             )
-            default_sample_rate = sd.default.samplerate
+            default_sample_rate = devices[sd.default.device[0]]["default_samplerate"]
             assert (
                 isinstance(default_sample_rate, (float, int))
                 and default_sample_rate > 0
@@ -64,7 +64,7 @@ class Microphone(AudioSource):
         assert (
             self.stream is None
         ), "This audio source is already inside a context manager"
-        self.audio = self.pyaudio_module.PyAudio()
+        self.audio = sd
 
         try:
             if self.speaker:
@@ -80,15 +80,12 @@ class Microphone(AudioSource):
                     )
                 )
             else:
-                self.stream = Microphone.MicrophoneStream(
-                    self.audio.open(
-                        input_device_index=self.device_index,
-                        channels=1,
-                        format=self.format,
-                        rate=self.SAMPLE_RATE,
-                        frames_per_buffer=self.CHUNK,
-                        input=True,
-                    )
+                self.stream = self.audio.InputStream(
+                    device=self.device_index,
+                    channels=1,
+                    dtype=self.format,  # You may need to adjust the format to match sounddevice's data types (e.g., 'float32')
+                    samplerate=self.SAMPLE_RATE,
+                    blocksize=self.CHUNK,
                 )
         except Exception:
             self.audio.terminate()
