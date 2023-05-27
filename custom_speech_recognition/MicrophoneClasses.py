@@ -1,4 +1,4 @@
-from custom_speech_recognition import AudioSource
+from custom_speech_recognition.AudioSource import AudioSource
 import sounddevice as sd
 
 

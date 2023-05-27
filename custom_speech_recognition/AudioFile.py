@@ -4,7 +4,7 @@ import io
 import os
 import subprocess
 import wave
-from custom_speech_recognition import AudioSource
+from custom_speech_recognition.AudioSource import AudioSource
 from .audio import get_flac_converter
 
 
