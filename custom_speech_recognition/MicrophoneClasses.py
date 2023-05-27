@@ -18,16 +18,17 @@ class Microphone(AudioSource):
 
     Higher ``chunk_size`` values help avoid triggering on rapidly changing ambient noise, but also makes detection less sensitive. This value, generally, should be left at its default.
     """
+from custom_speech_recognition.AudioSource import AudioSource
+import sounddevice as sd
 
+class Microphone(AudioSource):
     def __init__(
         self,
         device_index=None,
         sample_rate=None,
         chunk_size=1024,
-        speaker=False,
         channels=1,
     ):
-        self.speaker = speaker
         self.device_index = device_index
         self.channels = channels
         self.CHUNK = chunk_size
@@ -67,26 +68,13 @@ class Microphone(AudioSource):
         self.audio = sd
 
         try:
-            if self.speaker:
-                p = self.audio
-                self.stream = Microphone.MicrophoneStream(
-                    p.open(
-                        input_device_index=self.device_index,
-                        channels=self.channels,
-                        format=self.format,
-                        rate=self.SAMPLE_RATE,
-                        frames_per_buffer=self.CHUNK,
-                        input=True,
-                    )
-                )
-            else:
-                self.stream = self.audio.InputStream(
-                    device=self.device_index,
-                    channels=1,
-                    dtype=self.format,  # You may need to adjust the format to match sounddevice's data types (e.g., 'float32')
-                    samplerate=self.SAMPLE_RATE,
-                    blocksize=self.CHUNK,
-                )
+            self.stream = self.audio.InputStream(
+                device=self.device_index,
+                channels=self.channels,
+                dtype=self.format,  # You may need to adjust the format to match sounddevice's data types (e.g., 'float32')
+                samplerate=self.SAMPLE_RATE,
+                blocksize=self.CHUNK,
+            )
         except Exception:
             self.audio.terminate()
         return self
@@ -98,18 +86,12 @@ class Microphone(AudioSource):
             self.stream = None
             self.audio.terminate()
 
+    class MicrophoneStream(object):
+        def __init__(self, sounddevice_stream):
+            self.sounddevice_stream = sounddevice_stream
 
-class MicrophoneStream(object):
-    def __init__(self, pyaudio_stream):
-        self.pyaudio_stream = pyaudio_stream
+        def read(self, size):
+            return self.sounddevice_stream.read(size)
 
-    def read(self, size):
-        return self.pyaudio_stream.read(size, exception_on_overflow=False)
-
-    def close(self):
-        try:
-            # sometimes, if the stream isn't stopped, closing the stream throws an exception
-            if not self.pyaudio_stream.is_stopped():
-                self.pyaudio_stream.stop_stream()
-        finally:
-            self.pyaudio_stream.close()
+        def close(self):
+            self.sounddevice_stream.close()
