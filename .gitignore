@@ -2,3 +2,7 @@ __pycache__/
 *.wav
 keys.py
 .venv/
+.env
+.r2.chat.history.md
+.r2.input.history
+pyproject.toml
