@@ -36,7 +36,7 @@ class BaseRecorder:
 
 class DefaultMicRecorder(BaseRecorder):
     def __init__(self):
-        super().__init__(source=Microphone(sample_rate=16000), source_name="You")
+        super().__init__(source=Microphone(), source_name="You")
         self.adjust_for_noise(
             "Default Mic", "Please make some noise from the Default Mic..."
         )
@@ -45,7 +45,7 @@ class DefaultMicRecorder(BaseRecorder):
 class DefaultSpeakerRecorder(BaseRecorder):
     def __init__(self):
         default_speakers = sd.default.device[1]
-        default_speakers_info = sd.query_devices(default_speakers, "input")
+        default_speakers_info = sd.query_devices(default_speakers)
 
         source = Microphone(
             speaker=True,

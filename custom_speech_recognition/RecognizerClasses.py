@@ -115,9 +115,9 @@ class Recognizer(AudioSource):
             elapsed_time += seconds_per_buffer
             if elapsed_time > duration:
                 break
-            buffer = source.stream.read(source.CHUNK)
+            data, overflow = source.stream.read(source.CHUNK)
             energy = audioop.rms(
-                buffer, source.SAMPLE_WIDTH
+                data.tobytes(), source.SAMPLE_WIDTH
             )  # energy of the audio signal
 
             # dynamically adjust the energy threshold using asymmetric weighted average
@@ -255,7 +255,7 @@ class Recognizer(AudioSource):
                             "listening timed out while waiting for phrase to start"
                         )
 
-                    buffer = source.stream.read(source.CHUNK)
+                    buffer, overflow = source.stream.read(source.CHUNK)
                     if len(buffer) == 0:
                         break  # reached end of the stream
                     frames.append(buffer)
@@ -304,7 +304,7 @@ class Recognizer(AudioSource):
                 ):
                     break
 
-                buffer = source.stream.read(source.CHUNK)
+                buffer, overflow = source.stream.read(source.CHUNK)
                 if len(buffer) == 0:
                     break  # reached end of the stream
                 frames.append(buffer)

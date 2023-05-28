@@ -1,13 +1,12 @@
-from faster_whisper import WhisperModel
-import torch
 import wave
-import os
 import threading
 from tempfile import NamedTemporaryFile
-import custom_speech_recognition as sr
 import io
 from datetime import timedelta
 from heapq import merge
+from faster_whisper import WhisperModel
+
+from custom_speech_recognition.audio import AudioData
 
 PHRASE_TIMEOUT = 3.05
 
@@ -18,7 +17,7 @@ class AudioTranscriber:
     def __init__(self, mic_source, speaker_source):
         self.transcript_data = {"You": [], "Speaker": []}
         self.transcript_changed_event = threading.Event()
-        self.audio_model = WhisperModel(os.path.join(os.getcwd(), "tiny.en.pt"))
+        self.audio_model = WhisperModel("base.en")
         self.audio_sources = {
             "You": {
                 "sample_rate": mic_source.SAMPLE_RATE,
@@ -48,9 +47,11 @@ class AudioTranscriber:
             temp_file = source_info["process_data_func"](source_info["last_sample"])
             text = self.get_transcription(temp_file)
 
-            if text != "" and text.lower() != "you":
+            try:
                 self.update_transcript(who_spoke, text, time_spoken)
                 self.transcript_changed_event.set()
+            except AttributeError:
+                pass
 
     def update_last_sample_and_phrase_status(self, who_spoke, data, time_spoken):
         source_info = self.audio_sources[who_spoke]
@@ -67,7 +68,7 @@ class AudioTranscriber:
 
     def process_mic_data(self, data):
         temp_file = NamedTemporaryFile().name
-        audio_data = sr.AudioData(
+        audio_data = AudioData(
             data,
             self.audio_sources["You"]["sample_rate"],
             self.audio_sources["You"]["sample_width"],
@@ -79,17 +80,24 @@ class AudioTranscriber:
 
     def process_speaker_data(self, data):
         temp_file = NamedTemporaryFile().name
-        with wave.open(temp_file, "wb") as wf:
-            wf.setnchannels(self.audio_sources["Speaker"]["channels"])
-            p = pyaudio.PyAudio()
-            wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(self.audio_sources["Speaker"]["sample_rate"])
-            wf.writeframes(data)
+        audio_data = AudioData(
+            data,
+            self.audio_sources["Speaker"]["sample_rate"],
+            self.audio_sources["Speaker"]["sample_width"],
+        )
+        wav_data = io.BytesIO(audio_data.get_wav_data())
+        with open(temp_file, "w+b") as f:
+            f.write(wav_data.read())
         return temp_file
 
     def get_transcription(self, file_path):
-        result = self.audio_model.transcribe(file_path, fp16=torch.cuda.is_available())
-        return result["text"].strip()
+        segments, info = self.audio_model.transcribe(file_path)
+        print(
+            "Detected language '%s' with probability %f"
+            % (info.language, info.language_probability)
+        )
+        for segment in segments:
+            return segment.text
 
     def update_transcript(self, who_spoke, text, time_spoken):
         source_info = self.audio_sources[who_spoke]

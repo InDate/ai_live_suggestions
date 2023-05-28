@@ -1,4 +1,5 @@
 from custom_speech_recognition.AudioSource import AudioSource
+import soundcard as sc
 import sounddevice as sd
 
 
@@ -18,17 +19,16 @@ class Microphone(AudioSource):
 
     Higher ``chunk_size`` values help avoid triggering on rapidly changing ambient noise, but also makes detection less sensitive. This value, generally, should be left at its default.
     """
-from custom_speech_recognition.AudioSource import AudioSource
-import sounddevice as sd
 
-class Microphone(AudioSource):
     def __init__(
         self,
         device_index=None,
         sample_rate=None,
-        chunk_size=1024,
+        chunk_size=512,
         channels=1,
+        speaker=False,
     ):
+        self.speaker = speaker
         self.device_index = device_index
         self.channels = channels
         self.CHUNK = chunk_size
@@ -65,33 +65,35 @@ class Microphone(AudioSource):
         assert (
             self.stream is None
         ), "This audio source is already inside a context manager"
+
         self.audio = sd
 
         try:
-            self.stream = self.audio.InputStream(
-                device=self.device_index,
-                channels=self.channels,
-                dtype=self.format,  # You may need to adjust the format to match sounddevice's data types (e.g., 'float32')
-                samplerate=self.SAMPLE_RATE,
-                blocksize=self.CHUNK,
-            )
+            if self.speaker:
+                self.stream = self.audio.InputStream(
+                    device=1,
+                    channels=2,
+                    dtype=self.format,  # You may need to adjust the format to match sounddevice's data types (e.g., 'float32')
+                    samplerate=self.SAMPLE_RATE,
+                    blocksize=self.CHUNK,
+                )
+            else:
+                self.stream = self.audio.InputStream(
+                    device=self.device_index,
+                    channels=1,
+                    dtype=self.format,  # You may need to adjust the format to match sounddevice's data types (e.g., 'float32')
+                    samplerate=self.SAMPLE_RATE,
+                    blocksize=self.CHUNK,
+                )
+            self.stream.start()
         except Exception:
-            self.audio.terminate()
+            self.stream.close()
+            self.audio.stop()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:
             self.stream.close()
         finally:
+            self.audio.stop()
             self.stream = None
-            self.audio.terminate()
-
-    class MicrophoneStream(object):
-        def __init__(self, sounddevice_stream):
-            self.sounddevice_stream = sounddevice_stream
-
-        def read(self, size):
-            return self.sounddevice_stream.read(size)
-
-        def close(self):
-            self.sounddevice_stream.close()
